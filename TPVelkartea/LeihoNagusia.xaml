@@ -1,0 +1,461 @@
+<Window x:Class="TPVelkartea.LeihoNagusia"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="TPV Elkartea" Height="800" Width="1260" MinHeight="700" MinWidth="1100"
+        WindowStartupLocation="CenterScreen" Background="#F6F7FB" FontFamily="Segoe UI"
+        Language="eu-ES">
+
+    <!-- ================================================================== -->
+    <!--  KOLOREAK ETA ESTILOAK                                              -->
+    <!-- ================================================================== -->
+    <Window.Resources>
+        <SolidColorBrush x:Key="Iluna" Color="#172033"/>
+        <SolidColorBrush x:Key="Grisa" Color="#6B7280"/>
+        <SolidColorBrush x:Key="Nagusia" Color="#5B4BDB"/>
+        <SolidColorBrush x:Key="Berdea" Color="#16A085"/>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderBrush" Value="#D9DDE8"/>
+            <Setter Property="Margin" Value="0,5,0,12"/>
+        </Style>
+
+        <Style TargetType="PasswordBox">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderBrush" Value="#D9DDE8"/>
+            <Setter Property="Margin" Value="0,5,0,12"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Margin" Value="0,5,0,12"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="DatePicker">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Margin" Value="0,5,0,12"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="#E9E7FF"/>
+            <Setter Property="Foreground" Value="#40369C"/>
+        </Style>
+
+        <!-- Botoi nagusia (morea) -->
+        <Style x:Key="BotoiNagusia" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Height" Value="46"/>
+            <Setter Property="Background" Value="{StaticResource Nagusia}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- Ezabatzeko botoia (gorria) -->
+        <Style x:Key="BotoiGorria" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#FDECEC"/>
+            <Setter Property="Foreground" Value="#B42318"/>
+        </Style>
+
+        <!-- Kategorien botoiak -->
+        <Style x:Key="KategoriaBotoia" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="Margin" Value="0,0,0,7"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+
+        <!-- Teklatuko botoiak -->
+        <Style x:Key="Tekla" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="FontSize" Value="15"/>
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,10"/>
+        </Style>
+
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="RowHeight" Value="34"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+        </Style>
+
+        <!-- Formularioetako etiketa txikiak -->
+        <Style x:Key="Etiketa" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource Grisa}"/>
+        </Style>
+
+        <Style x:Key="Izenburua" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource Iluna}"/>
+        </Style>
+
+        <!-- Txartel zuriak -->
+        <Style x:Key="Txartela" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="18"/>
+            <Setter Property="Padding" Value="18"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+
+        <!-- ============================================================== -->
+        <!--  1. SAIO-HASIERA                                                -->
+        <!-- ============================================================== -->
+        <Border x:Name="SaioHasieraPanela" Style="{StaticResource Txartela}"
+                Width="430" Padding="42" CornerRadius="24"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel>
+                <Border Background="#EEECFF" CornerRadius="20" Width="82" Height="82" HorizontalAlignment="Center">
+                    <TextBlock Text="🍽" FontSize="42" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="TPV ELKARTEA" FontSize="30" FontWeight="Bold" Foreground="{StaticResource Iluna}"
+                           HorizontalAlignment="Center" Margin="0,20,0,3"/>
+                <TextBlock Text="Kudeatu zure elkartea errazago" Foreground="{StaticResource Grisa}"
+                           HorizontalAlignment="Center" Margin="0,0,0,30"/>
+
+                <TextBlock Text="ERABILTZAILEA" Style="{StaticResource Etiketa}"/>
+                <TextBox x:Name="ErabiltzaileaKutxa"/>
+
+                <TextBlock Text="PASAHITZA" Style="{StaticResource Etiketa}"/>
+                <PasswordBox x:Name="PasahitzaKutxa" KeyDown="PasahitzaKutxa_KeyDown"/>
+
+                <Button Content="SARTU  →" Style="{StaticResource BotoiNagusia}" Click="Sartu_Click"/>
+                <TextBlock x:Name="SaioMezua" Foreground="#D64545" TextAlignment="Center" TextWrapping="Wrap" Margin="0,14,0,0"/>
+                <TextBlock Text="admin / admin  ·  langilea / langilea" Foreground="#9CA3AF" FontSize="11"
+                           HorizontalAlignment="Center" Margin="0,20,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ============================================================== -->
+        <!--  2. APLIKAZIOA (saioa hasi ondoren)                             -->
+        <!-- ============================================================== -->
+        <Grid x:Name="AplikazioPanela" Visibility="Collapsed" Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="64"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Goiburua -->
+            <DockPanel Grid.Row="0">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="#EEECFF" CornerRadius="18" Padding="14,8">
+                        <TextBlock x:Name="ErabiltzaileTestua" Foreground="#40369C" FontWeight="SemiBold"/>
+                    </Border>
+                    <Button Content="Itxi saioa" Margin="14,0,0,0" Click="SaioaItxi_Click"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="TPV ELKARTEA" FontSize="25" FontWeight="Bold" Foreground="{StaticResource Iluna}"/>
+                    <TextBlock Text="Kudeaketa eta salmenta panela" Foreground="{StaticResource Grisa}" FontSize="12"/>
+                </StackPanel>
+            </DockPanel>
+
+            <TabControl x:Name="FitxaNagusiak" Grid.Row="1" Background="Transparent" BorderThickness="0">
+
+                <!-- ====================================================== -->
+                <!--  2.1 SALMENTA                                           -->
+                <!-- ====================================================== -->
+                <TabItem Header="🛒  Salmenta">
+                    <Grid Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="170"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="360"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Kategoriak -->
+                        <Border Grid.Column="0" Style="{StaticResource Txartela}" Padding="12" Margin="0,0,14,0">
+                            <StackPanel x:Name="KategoriaPanela">
+                                <TextBlock Text="KATEGORIAK" Style="{StaticResource Etiketa}" Margin="4,4,0,14"/>
+                                <Button Content="🛍  Guztiak" Tag="" Style="{StaticResource KategoriaBotoia}"
+                                        Background="{StaticResource Nagusia}" Foreground="White" Click="Kategoria_Click"/>
+                                <Button Content="🍽  Platerak" Tag="Platerak" Style="{StaticResource KategoriaBotoia}" Click="Kategoria_Click"/>
+                                <Button Content="🍺  Edariak" Tag="Edariak" Style="{StaticResource KategoriaBotoia}" Click="Kategoria_Click"/>
+                                <Button Content="🍰  Postreak" Tag="Postreak" Style="{StaticResource KategoriaBotoia}" Click="Kategoria_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Produktuen katalogoa -->
+                        <Grid Grid.Column="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <DockPanel Margin="0,0,0,10">
+                                <StackPanel DockPanel.Dock="Right" Width="210">
+                                    <TextBlock Text="BILATU" Style="{StaticResource Etiketa}"/>
+                                    <TextBox x:Name="BilaketaKutxa" Margin="0,4,0,0" TextChanged="Bilaketa_TextChanged"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Produktuak" FontSize="24" FontWeight="Bold" Foreground="{StaticResource Iluna}"/>
+                                    <TextBlock x:Name="KategoriaTestua" Text="Produktu guztiak" Foreground="{StaticResource Grisa}"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <WrapPanel x:Name="ProduktuPanela"/>
+                            </ScrollViewer>
+                        </Grid>
+
+                        <!-- Ticket-a -->
+                        <Border Grid.Column="2" Style="{StaticResource Txartela}" Margin="14,0,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0">
+                                    <TextBlock Text="TICKET-A" Style="{StaticResource Etiketa}"/>
+                                    <TextBlock Text="Uneko salmenta" FontSize="21" FontWeight="Bold"
+                                               Foreground="{StaticResource Iluna}" Margin="0,3,0,10"/>
+                                </StackPanel>
+
+                                <ListBox x:Name="SaskiaZerrenda" Grid.Row="1" BorderThickness="0" Background="#FAFAFC" Padding="6"/>
+
+                                <!-- Kopurua sartzeko teklatua -->
+                                <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                                    <DockPanel>
+                                        <TextBlock x:Name="KopuruaTestua" Text="1" DockPanel.Dock="Right" FontSize="18"
+                                                   FontWeight="Bold" Foreground="{StaticResource Iluna}"/>
+                                        <TextBlock Text="HURRENGO PRODUKTUAREN KOPURUA" Style="{StaticResource Etiketa}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <UniformGrid Columns="3" Margin="0,6,0,0">
+                                        <Button Content="7" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="8" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="9" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="4" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="5" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="6" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="1" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="2" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="3" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="C" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="0" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                        <Button Content="⌫" Style="{StaticResource Tekla}" Click="Tekla_Click"/>
+                                    </UniformGrid>
+                                    <UniformGrid Columns="2" Margin="0,4,0,0">
+                                        <Button Content="Kendu lerroa" Margin="2" Click="KenduLerroa_Click"/>
+                                        <Button Content="Hustu saskia" Margin="2" Style="{StaticResource BotoiGorria}" Click="HustuSaskia_Click"/>
+                                    </UniformGrid>
+                                </StackPanel>
+
+                                <!-- Guztira eta ordaindu -->
+                                <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                                    <Separator/>
+                                    <DockPanel Margin="0,8,0,0">
+                                        <TextBlock x:Name="GuztiraTestua" Text="0,00 €" DockPanel.Dock="Right" FontSize="24"
+                                                   FontWeight="Bold" Foreground="{StaticResource Iluna}"/>
+                                        <TextBlock Text="GUZTIRA" Style="{StaticResource Etiketa}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <Button Content="ORDAINDU ETA AMAITU  ✓" Style="{StaticResource BotoiNagusia}"
+                                            Background="{StaticResource Berdea}" Margin="0,10,0,0" Click="Ordaindu_Click"/>
+                                    <TextBlock x:Name="SalmentaMezua" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <!-- ====================================================== -->
+                <!--  2.2 ERRESERBAK                                         -->
+                <!-- ====================================================== -->
+                <TabItem Header="📅  Erreserbak">
+                    <Grid Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="340"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Mahai-planoa -->
+                        <Border Grid.Column="0" Style="{StaticResource Txartela}" Margin="0,0,18,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Margin="0,0,0,12">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Background="#D9B889" Width="14" Height="14" CornerRadius="3" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Libre" Margin="0,0,14,0"/>
+                                        <Border Background="#F8D8D6" Width="14" Height="14" CornerRadius="3" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Erreserbatua" Margin="0,0,14,0"/>
+                                        <Border BorderBrush="{StaticResource Nagusia}" BorderThickness="3" Width="14" Height="14" CornerRadius="3" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Aukeratua"/>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Elkarteko jantokia" FontSize="25" FontWeight="Bold" Foreground="{StaticResource Iluna}"/>
+                                        <TextBlock Text="Egin klik libre dagoen mahai batean" Foreground="{StaticResource Grisa}"/>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                    <Canvas x:Name="Planoa" Width="820" Height="510" Background="#F3EEE5"/>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+
+                        <!-- Erreserba-formularioa eta zerrenda -->
+                        <Border Grid.Column="1" Style="{StaticResource Txartela}" Padding="22">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0">
+                                    <TextBlock Text="ERRESERBA BERRIA" Style="{StaticResource Etiketa}"/>
+                                    <TextBlock x:Name="MahaiaTestua" Text="Aukeratu mahai bat planoan" FontSize="20" FontWeight="Bold"
+                                               Foreground="{StaticResource Iluna}" TextWrapping="Wrap" Margin="0,6,0,18"/>
+
+                                    <TextBlock Text="DATA" Style="{StaticResource Etiketa}"/>
+                                    <DatePicker x:Name="DataAukeratzailea" SelectedDateChanged="DataEdoTxanda_Changed"/>
+
+                                    <TextBlock Text="TXANDA" Style="{StaticResource Etiketa}"/>
+                                    <ComboBox x:Name="TxandaKutxa" SelectionChanged="DataEdoTxanda_Changed"/>
+
+                                    <Button Content="ERRESERBATU MAHAI HAU  →" Style="{StaticResource BotoiNagusia}" Click="Erreserbatu_Click"/>
+                                    <TextBlock x:Name="ErreserbaMezua" TextWrapping="Wrap" Margin="0,10,0,14"/>
+
+                                    <TextBlock Text="EGUN ETA TXANDA HONETAKO ERRESERBAK" Style="{StaticResource Etiketa}"/>
+                                </StackPanel>
+
+                                <DockPanel Grid.Row="1" Margin="0,6,0,0">
+                                    <Button DockPanel.Dock="Bottom" Content="Ezeztatu hautatutako erreserba"
+                                            Style="{StaticResource BotoiGorria}" Margin="0,8,0,0" Click="EzeztatuErreserba_Click"/>
+                                    <ListBox x:Name="ErreserbaZerrenda" BorderThickness="0" Background="#FAFAFC" Padding="6"/>
+                                </DockPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <!-- ====================================================== -->
+                <!--  2.3 ADMINISTRAZIOA (administratzaileentzat bakarrik)   -->
+                <!-- ====================================================== -->
+                <TabItem x:Name="AdministrazioFitxa" Header="⚙  Administrazioa">
+                    <TabControl Margin="0,16,0,0">
+
+                        <!-- Produktuak -->
+                        <TabItem Header="Produktuak">
+                            <DockPanel Margin="0,12,0,0">
+                                <Border DockPanel.Dock="Right" Style="{StaticResource Txartela}" Width="280" Margin="14,0,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Produktuaren datuak" Style="{StaticResource Izenburua}" Margin="0,0,0,12"/>
+
+                                        <TextBlock Text="IZENA" Style="{StaticResource Etiketa}"/>
+                                        <TextBox x:Name="ProduktuIzenaKutxa"/>
+
+                                        <TextBlock Text="KATEGORIA" Style="{StaticResource Etiketa}"/>
+                                        <ComboBox x:Name="ProduktuKategoriaKutxa"/>
+
+                                        <TextBlock Text="PREZIOA (€)" Style="{StaticResource Etiketa}"/>
+                                        <TextBox x:Name="ProduktuPrezioaKutxa"/>
+
+                                        <TextBlock Text="STOCKA" Style="{StaticResource Etiketa}"/>
+                                        <TextBox x:Name="ProduktuStockaKutxa"/>
+
+                                        <UniformGrid Columns="2">
+                                            <Button Content="Berria" Margin="0,0,4,0" Click="ProduktuBerria_Click"/>
+                                            <Button Content="Gorde" Margin="4,0,0,0" Style="{StaticResource BotoiNagusia}" Height="Auto" Click="GordeProduktua_Click"/>
+                                        </UniformGrid>
+                                        <Button Content="Ezabatu hautatutakoa" Style="{StaticResource BotoiGorria}" Margin="0,8,0,0" Click="EzabatuProduktua_Click"/>
+                                        <TextBlock x:Name="ProduktuMezua" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Txartela}">
+                                    <DataGrid x:Name="ProduktuTaula" SelectionChanged="ProduktuTaula_SelectionChanged">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="50"/>
+                                            <DataGridTextColumn Header="Izena" Binding="{Binding Izena}" Width="*"/>
+                                            <DataGridTextColumn Header="Kategoria" Binding="{Binding Kategoria}" Width="110"/>
+                                            <DataGridTextColumn Header="Prezioa" Binding="{Binding Prezioa, StringFormat='{}{0:0.00} €'}" Width="90"/>
+                                            <DataGridTextColumn Header="Stocka" Binding="{Binding Stocka}" Width="70"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Border>
+                            </DockPanel>
+                        </TabItem>
+
+                        <!-- Erabiltzaileak -->
+                        <TabItem Header="Erabiltzaileak">
+                            <DockPanel Margin="0,12,0,0">
+                                <Border DockPanel.Dock="Right" Style="{StaticResource Txartela}" Width="280" Margin="14,0,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Erabiltzailearen datuak" Style="{StaticResource Izenburua}" Margin="0,0,0,12"/>
+
+                                        <TextBlock Text="IZENA" Style="{StaticResource Etiketa}"/>
+                                        <TextBox x:Name="ErabiltzaileIzenaKutxa"/>
+
+                                        <TextBlock Text="PASAHITZA" Style="{StaticResource Etiketa}"/>
+                                        <PasswordBox x:Name="ErabiltzailePasahitzaKutxa"/>
+
+                                        <TextBlock Text="ROLA" Style="{StaticResource Etiketa}"/>
+                                        <ComboBox x:Name="ErabiltzaileRolaKutxa"/>
+
+                                        <UniformGrid Columns="2">
+                                            <Button Content="Berria" Margin="0,0,4,0" Click="ErabiltzaileBerria_Click"/>
+                                            <Button Content="Gorde" Margin="4,0,0,0" Style="{StaticResource BotoiNagusia}" Height="Auto" Click="GordeErabiltzailea_Click"/>
+                                        </UniformGrid>
+                                        <Button Content="Ezabatu hautatutakoa" Style="{StaticResource BotoiGorria}" Margin="0,8,0,0" Click="EzabatuErabiltzailea_Click"/>
+                                        <TextBlock x:Name="ErabiltzaileMezua" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                        <TextBlock Text="Erabiltzaile bat aldatzean pasahitza hutsik uzten bada, zaharra mantentzen da."
+                                                   TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Grisa}" Margin="0,10,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Txartela}">
+                                    <DataGrid x:Name="ErabiltzaileTaula" SelectionChanged="ErabiltzaileTaula_SelectionChanged">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="50"/>
+                                            <DataGridTextColumn Header="Izena" Binding="{Binding Izena}" Width="*"/>
+                                            <DataGridTextColumn Header="Rola" Binding="{Binding Rola}" Width="160"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Border>
+                            </DockPanel>
+                        </TabItem>
+
+                        <!-- Salmenten historia -->
+                        <TabItem Header="Salmentak">
+                            <Border Style="{StaticResource Txartela}" Margin="0,12,0,0">
+                                <DockPanel>
+                                    <TextBlock x:Name="GaurkoSalmentakTestua" DockPanel.Dock="Top" Style="{StaticResource Izenburua}" Margin="0,0,0,12"/>
+                                    <DataGrid x:Name="SalmentaTaula">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Zk." Binding="{Binding Id}" Width="60"/>
+                                            <DataGridTextColumn Header="Data eta ordua" Binding="{Binding DataOrdua}" Width="180"/>
+                                            <DataGridTextColumn Header="Erabiltzailea" Binding="{Binding Erabiltzailea}" Width="*"/>
+                                            <DataGridTextColumn Header="Guztira" Binding="{Binding Guztira, StringFormat='{}{0:0.00} €'}" Width="110"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </DockPanel>
+                            </Border>
+                        </TabItem>
+                    </TabControl>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </Grid>
+</Window>

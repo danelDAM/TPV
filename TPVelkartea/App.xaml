@@ -1,9 +1,5 @@
-﻿<Application x:Class="TPVelkartea.App"
+<Application x:Class="TPVelkartea.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:TPVelkartea"
-             StartupUri="MainWindow.xaml">
-    <Application.Resources>
-         
-    </Application.Resources>
+             StartupUri="LeihoNagusia.xaml">
 </Application>
