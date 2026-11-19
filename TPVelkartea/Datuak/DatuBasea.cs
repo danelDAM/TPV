@@ -1,8 +1,10 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using TPVelkartea.Ereduak;
+using TPVelkartea.Protocol;
 
 namespace TPVelkartea.Datuak;
 
@@ -13,14 +15,22 @@ namespace TPVelkartea.Datuak;
 public class DatuBasea
 {
     private readonly string _konexioKatea;
+    private readonly bool _remote;
+    private readonly TcpJsonClient? _tcp;
+    private string? _remoteRole;
 
     public DatuBasea()
-        : this(Path.Combine(AppContext.BaseDirectory, "Datuak", "elkartea.db"))
     {
+        _remote = true;
+        _konexioKatea = "";
+        _tcp = new TcpJsonClient(
+            Environment.GetEnvironmentVariable("TPV_SERVER_HOST") ?? "127.0.0.1",
+            int.TryParse(Environment.GetEnvironmentVariable("TPV_SERVER_PORT"), out int port) ? port : ProtocolConstants.DefaultPort);
     }
 
     public DatuBasea(string fitxategia)
     {
+        _remote = false;
         // Karpeta ez badago, sortu egiten da
         Directory.CreateDirectory(Path.GetDirectoryName(fitxategia)!);
         _konexioKatea = "Data Source=" + fitxategia;
@@ -33,6 +43,9 @@ public class DatuBasea
     {
         SqliteConnection konexioa = new SqliteConnection(_konexioKatea);
         konexioa.Open();
+        using SqliteCommand pragma = konexioa.CreateCommand();
+        pragma.CommandText = "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;";
+        pragma.ExecuteNonQuery();
         return konexioa;
     }
 
@@ -87,6 +100,45 @@ public class DatuBasea
         komandoa.ExecuteNonQuery();
     }
 
+    public void AldatuErreserba(int id, int mahaiZenbakia, DateTime data, string txanda, string erabiltzailea, bool administratzailea)
+    {
+        if (_remote)
+        {
+            Bidali<bool>("update-reservation", new { id, table = mahaiZenbakia, date = data, shift = txanda }, erabiltzailea, administratzailea ? Erabiltzailea.Administratzailea : Erabiltzailea.Langilea);
+            return;
+        }
+
+        using SqliteConnection konexioa = Konektatu();
+        SqliteCommand komandoa = konexioa.CreateCommand();
+        komandoa.CommandText = administratzailea
+            ? "UPDATE Erreserbak SET MahaiZenbakia = @mahaia, Data = @data, Txanda = @txanda WHERE Id = @id"
+            : "UPDATE Erreserbak SET MahaiZenbakia = @mahaia, Data = @data, Txanda = @txanda WHERE Id = @id AND Erabiltzailea = @erabiltzailea";
+        komandoa.Parameters.AddWithValue("@id", id);
+        komandoa.Parameters.AddWithValue("@mahaia", mahaiZenbakia);
+        komandoa.Parameters.AddWithValue("@data", DataTestura(data));
+        komandoa.Parameters.AddWithValue("@txanda", txanda);
+        komandoa.Parameters.AddWithValue("@erabiltzailea", erabiltzailea);
+        if (komandoa.ExecuteNonQuery() == 0)
+        {
+            throw new InvalidOperationException("Ezin duzu beste erabiltzaile baten erreserba aldatu.");
+        }
+    }
+
+    public void EzabatuErreserba(int id, string erabiltzailea, bool administratzailea)
+    {
+        using SqliteConnection konexioa = Konektatu();
+        SqliteCommand komandoa = konexioa.CreateCommand();
+        komandoa.CommandText = administratzailea
+            ? "DELETE FROM Erreserbak WHERE Id = @id"
+            : "DELETE FROM Erreserbak WHERE Id = @id AND Erabiltzailea = @erabiltzailea";
+        komandoa.Parameters.AddWithValue("@id", id);
+        komandoa.Parameters.AddWithValue("@erabiltzailea", erabiltzailea);
+        if (komandoa.ExecuteNonQuery() == 0)
+        {
+            throw new InvalidOperationException("Ezin duzu beste erabiltzaile baten erreserba ezabatu.");
+        }
+    }
+
     private void SartuHasierakoDatuak()
     {
         if (LortuErabiltzaileak().Count == 0)
@@ -118,6 +170,13 @@ public class DatuBasea
     /// </summary>
     public Erabiltzailea? SaioaHasi(string izena, string pasahitza)
     {
+        if (_remote)
+        {
+            Erabiltzailea? erabiltzailea = Bidali<Erabiltzailea?>("login", new { }, izena, pasahitza);
+            _remoteRole = erabiltzailea?.Rola;
+            return erabiltzailea;
+        }
+
         using SqliteConnection konexioa = Konektatu();
         SqliteCommand komandoa = konexioa.CreateCommand();
         komandoa.CommandText = "SELECT Id, Izena, Rola FROM Erabiltzaileak WHERE Izena = @izena AND Pasahitza = @pasahitza";
@@ -135,6 +194,11 @@ public class DatuBasea
 
     public List<Erabiltzailea> LortuErabiltzaileak()
     {
+        if (_remote)
+        {
+            return Bidali<List<Erabiltzailea>>("users", new { }) ?? new List<Erabiltzailea>();
+        }
+
         List<Erabiltzailea> erabiltzaileak = new List<Erabiltzailea>();
 
         using SqliteConnection konexioa = Konektatu();
@@ -156,6 +220,12 @@ public class DatuBasea
     /// </summary>
     public void GordeErabiltzailea(Erabiltzailea erabiltzailea, string pasahitza)
     {
+        if (_remote)
+        {
+            Bidali<bool>("save-user", new { user = erabiltzailea, password = pasahitza });
+            return;
+        }
+
         if (IzenaHartutaDago(erabiltzailea.Izena, erabiltzailea.Id))
         {
             throw new InvalidOperationException("Izen hori duen erabiltzaile bat badago jada.");
@@ -186,6 +256,12 @@ public class DatuBasea
 
     public void EzabatuErabiltzailea(int id)
     {
+        if (_remote)
+        {
+            Bidali<bool>("delete-user", new { id });
+            return;
+        }
+
         using SqliteConnection konexioa = Konektatu();
         SqliteCommand komandoa = konexioa.CreateCommand();
         komandoa.CommandText = "DELETE FROM Erabiltzaileak WHERE Id = @id";
@@ -229,6 +305,11 @@ public class DatuBasea
 
     public List<Produktua> LortuProduktuak()
     {
+        if (_remote)
+        {
+            return Bidali<List<Produktua>>("products", new { }) ?? new List<Produktua>();
+        }
+
         List<Produktua> produktuak = new List<Produktua>();
 
         using SqliteConnection konexioa = Konektatu();
@@ -255,6 +336,12 @@ public class DatuBasea
     /// </summary>
     public void GordeProduktua(Produktua produktua)
     {
+        if (_remote)
+        {
+            Bidali<bool>("save-product", produktua);
+            return;
+        }
+
         using SqliteConnection konexioa = Konektatu();
         SqliteCommand komandoa = konexioa.CreateCommand();
 
@@ -277,6 +364,12 @@ public class DatuBasea
 
     public void EzabatuProduktua(int id)
     {
+        if (_remote)
+        {
+            Bidali<bool>("delete-product", new { id });
+            return;
+        }
+
         using SqliteConnection konexioa = Konektatu();
         SqliteCommand komandoa = konexioa.CreateCommand();
         komandoa.CommandText = "DELETE FROM Produktuak WHERE Id = @id";
@@ -296,6 +389,11 @@ public class DatuBasea
     /// </summary>
     public int GordeSalmenta(string erabiltzailea, List<SaskiLerroa> saskia)
     {
+        if (_remote)
+        {
+            return Bidali<int>("sale", saskia, erabiltzailea);
+        }
+
         if (saskia.Count == 0)
         {
             throw new InvalidOperationException("Saskia hutsik dago.");
@@ -356,6 +454,11 @@ public class DatuBasea
 
     public List<Salmenta> LortuSalmentak()
     {
+        if (_remote)
+        {
+            return Bidali<List<Salmenta>>("sales", new { }) ?? new List<Salmenta>();
+        }
+
         List<Salmenta> salmentak = new List<Salmenta>();
 
         using SqliteConnection konexioa = Konektatu();
@@ -382,6 +485,11 @@ public class DatuBasea
 
     public List<Erreserba> LortuErreserbak(DateTime data, string txanda)
     {
+        if (_remote)
+        {
+            return Bidali<List<Erreserba>>("reservations", new { date = data, shift = txanda }) ?? new List<Erreserba>();
+        }
+
         List<Erreserba> erreserbak = new List<Erreserba>();
 
         using SqliteConnection konexioa = Konektatu();
@@ -407,6 +515,12 @@ public class DatuBasea
 
     public void GordeErreserba(int mahaiZenbakia, DateTime data, string txanda, string erabiltzailea)
     {
+        if (_remote)
+        {
+            Bidali<bool>("save-reservation", new { table = mahaiZenbakia, date = data, shift = txanda }, erabiltzailea);
+            return;
+        }
+
         using SqliteConnection konexioa = Konektatu();
 
         // Lehenengo begiratu mahaia libre dagoen
@@ -433,6 +547,12 @@ public class DatuBasea
 
     public void EzabatuErreserba(int id)
     {
+        if (_remote)
+        {
+            Bidali<bool>("delete-reservation", new { id });
+            return;
+        }
+
         using SqliteConnection konexioa = Konektatu();
         SqliteCommand komandoa = konexioa.CreateCommand();
         komandoa.CommandText = "DELETE FROM Erreserbak WHERE Id = @id";
@@ -443,5 +563,30 @@ public class DatuBasea
     private static string DataTestura(DateTime data)
     {
         return data.ToString("yyyy-MM-dd");
+    }
+
+    private T? Bidali<T>(string operation, object payload, string? username = null, string? passwordOrRole = null)
+    {
+        TcpRequest request = new()
+        {
+            Operation = operation,
+            Username = username,
+            Password = operation == "login" ? passwordOrRole : null,
+            Role = operation == "delete-reservation" ? passwordOrRole : _remoteRole,
+            Payload = JsonSerializer.SerializeToElement(payload)
+        };
+
+        TcpResponse response = _tcp!.SendAsync(request).GetAwaiter().GetResult();
+        if (!response.Success)
+        {
+            throw new InvalidOperationException(response.Error ?? "El servidor rechazó la operación.");
+        }
+
+        if (response.Data.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return default;
+        }
+
+        return response.Data.Deserialize<T>();
     }
 }

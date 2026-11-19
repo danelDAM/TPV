@@ -307,9 +307,44 @@ public partial class LeihoNagusia
 
         if (erantzuna == MessageBoxResult.Yes)
         {
-            _datuBasea.EzabatuErreserba(erreserba.Id);
-            ErakutsiMezua(ErreserbaMezua, "Erreserba ezeztatuta.", true);
+            try
+            {
+                _datuBasea.EzabatuErreserba(erreserba.Id, _erabiltzailea!.Izena, _erabiltzailea.AdministratzaileaDa());
+                ErakutsiMezua(ErreserbaMezua, "Erreserba ezeztatuta.", true);
+            }
+            catch (InvalidOperationException errorea)
+            {
+                ErakutsiMezua(ErreserbaMezua, errorea.Message, false);
+            }
             KargatuMahaiak();
+        }
+    }
+
+    private void AldatuErreserba_Click(object sender, RoutedEventArgs e)
+    {
+        if (ErreserbaZerrenda.SelectedItem is not Erreserba erreserba)
+        {
+            ErakutsiMezua(ErreserbaMezua, "Aukeratu zerrendako erreserba bat.", false);
+            return;
+        }
+
+        if (_aukeratutakoMahaia == 0 || DataAukeratzailea.SelectedDate is null)
+        {
+            ErakutsiMezua(ErreserbaMezua, "Aukeratu mahai eta data berriak.", false);
+            return;
+        }
+
+        try
+        {
+            _datuBasea.AldatuErreserba(erreserba.Id, _aukeratutakoMahaia, DataAukeratzailea.SelectedDate.Value, AukeratutakoTxanda(), _erabiltzailea!.Izena, _erabiltzailea.AdministratzaileaDa());
+            ErakutsiMezua(ErreserbaMezua, "Erreserba aldatuta.", true);
+            _aukeratutakoMahaia = 0;
+            MahaiaTestua.Text = "Aukeratu mahai bat planoan";
+            KargatuMahaiak();
+        }
+        catch (InvalidOperationException errorea)
+        {
+            ErakutsiMezua(ErreserbaMezua, errorea.Message, false);
         }
     }
 }
