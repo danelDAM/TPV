@@ -130,13 +130,16 @@
                 <TextBlock Text="Kudeatu zure elkartea errazago" Foreground="{StaticResource Grisa}"
                            HorizontalAlignment="Center" Margin="0,0,0,30"/>
 
+                <TextBlock Text="ZERBITZARIA (IP helbidea)" Style="{StaticResource Etiketa}"/>
+                <TextBox x:Name="ZerbitzariaKutxa" Text="127.0.0.1"/>
+
                 <TextBlock Text="ERABILTZAILEA" Style="{StaticResource Etiketa}"/>
                 <TextBox x:Name="ErabiltzaileaKutxa"/>
 
                 <TextBlock Text="PASAHITZA" Style="{StaticResource Etiketa}"/>
                 <PasswordBox x:Name="PasahitzaKutxa" KeyDown="PasahitzaKutxa_KeyDown"/>
 
-                <Button Content="SARTU  →" Style="{StaticResource BotoiNagusia}" Click="Sartu_Click"/>
+                <Button x:Name="SartuBotoia" Content="SARTU  →" Style="{StaticResource BotoiNagusia}" Click="Sartu_Click"/>
                 <TextBlock x:Name="SaioMezua" Foreground="#D64545" TextAlignment="Center" TextWrapping="Wrap" Margin="0,14,0,0"/>
                 <TextBlock Text="admin / admin  ·  langilea / langilea" Foreground="#9CA3AF" FontSize="11"
                            HorizontalAlignment="Center" Margin="0,20,0,0"/>
@@ -267,7 +270,7 @@
                                                    FontWeight="Bold" Foreground="{StaticResource Iluna}"/>
                                         <TextBlock Text="GUZTIRA" Style="{StaticResource Etiketa}" VerticalAlignment="Center"/>
                                     </DockPanel>
-                                    <Button Content="ORDAINDU ETA AMAITU  ✓" Style="{StaticResource BotoiNagusia}"
+                                    <Button x:Name="OrdainduBotoia" Content="ORDAINDU ETA AMAITU  ✓" Style="{StaticResource BotoiNagusia}"
                                             Background="{StaticResource Berdea}" Margin="0,10,0,0" Click="Ordaindu_Click"/>
                                     <TextBlock x:Name="SalmentaMezua" TextWrapping="Wrap" Margin="0,8,0,0"/>
                                 </StackPanel>
@@ -324,26 +327,29 @@
                                 </Grid.RowDefinitions>
 
                                 <StackPanel Grid.Row="0">
-                                    <TextBlock Text="ERRESERBA BERRIA" Style="{StaticResource Etiketa}"/>
+                                    <TextBlock x:Name="ErreserbaIzenburua" Text="ERRESERBA BERRIA" Style="{StaticResource Etiketa}"/>
                                     <TextBlock x:Name="MahaiaTestua" Text="Aukeratu mahai bat planoan" FontSize="20" FontWeight="Bold"
-                                               Foreground="{StaticResource Iluna}" TextWrapping="Wrap" Margin="0,6,0,18"/>
+                                               Foreground="{StaticResource Iluna}" TextWrapping="Wrap" Margin="0,6,0,14"/>
 
                                     <TextBlock Text="DATA" Style="{StaticResource Etiketa}"/>
                                     <DatePicker x:Name="DataAukeratzailea" SelectedDateChanged="DataEdoTxanda_Changed"/>
+                                    <CheckBox x:Name="DataGabeKutxa" Content="Data zehaztu gabe" Margin="0,0,0,12"
+                                              Checked="DataGabe_Changed" Unchecked="DataGabe_Changed"/>
 
                                     <TextBlock Text="TXANDA" Style="{StaticResource Etiketa}"/>
                                     <ComboBox x:Name="TxandaKutxa" SelectionChanged="DataEdoTxanda_Changed"/>
 
-                                    <Button Content="ERRESERBATU MAHAI HAU  →" Style="{StaticResource BotoiNagusia}" Click="Erreserbatu_Click"/>
-                                    <TextBlock x:Name="ErreserbaMezua" TextWrapping="Wrap" Margin="0,10,0,14"/>
+                                    <Button x:Name="ErreserbatuBotoia" Content="ERRESERBATU MAHAI HAU  →" Style="{StaticResource BotoiNagusia}" Click="Erreserbatu_Click"/>
+                                    <Button x:Name="AldaketaUtziBotoia" Content="Utzi aldaketa" Margin="0,6,0,0" Visibility="Collapsed" Click="AldaketaUtzi_Click"/>
+                                    <TextBlock x:Name="ErreserbaMezua" TextWrapping="Wrap" Margin="0,10,0,12"/>
 
-                                    <TextBlock Text="EGUN ETA TXANDA HONETAKO ERRESERBAK" Style="{StaticResource Etiketa}"/>
+                                    <TextBlock x:Name="ErreserbaZerrendaIzenburua" Text="EGUN ETA TXANDA HONETAKO ERRESERBAK" Style="{StaticResource Etiketa}"/>
                                 </StackPanel>
 
                                 <DockPanel Grid.Row="1" Margin="0,6,0,0">
                                     <UniformGrid DockPanel.Dock="Bottom" Columns="2" Margin="0,8,0,0">
                                         <Button Content="Aldatu hautatutakoa" Margin="0,0,4,0" Click="AldatuErreserba_Click"/>
-                                        <Button Content="Ezeztatu hautatutakoa" Style="{StaticResource BotoiGorria}" Margin="4,0,0,0" Click="EzeztatuErreserba_Click"/>
+                                        <Button Content="Ezabatu hautatutakoa" Style="{StaticResource BotoiGorria}" Margin="4,0,0,0" Click="EzabatuErreserba_Click"/>
                                     </UniformGrid>
                                     <ListBox x:Name="ErreserbaZerrenda" BorderThickness="0" Background="#FAFAFC" Padding="6"/>
                                 </DockPanel>
@@ -382,7 +388,15 @@
                                             <Button Content="Gorde" Margin="4,0,0,0" Style="{StaticResource BotoiNagusia}" Height="Auto" Click="GordeProduktua_Click"/>
                                         </UniformGrid>
                                         <Button Content="Ezabatu hautatutakoa" Style="{StaticResource BotoiGorria}" Margin="0,8,0,0" Click="EzabatuProduktua_Click"/>
-                                        <TextBlock x:Name="ProduktuMezua" TextWrapping="Wrap" Margin="0,10,0,0"/>
+
+                                        <Separator Margin="0,14,0,10"/>
+                                        <TextBlock Text="BILTEGIRA SARTU (UNITATEAK)" Style="{StaticResource Etiketa}"/>
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right" Content="+ Gehitu" Margin="8,5,0,12" Click="GehituStocka_Click"/>
+                                            <TextBox x:Name="StockGehitzeaKutxa"/>
+                                        </DockPanel>
+
+                                        <TextBlock x:Name="ProduktuMezua" TextWrapping="Wrap" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
 

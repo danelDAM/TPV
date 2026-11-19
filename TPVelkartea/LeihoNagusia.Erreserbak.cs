@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -7,7 +8,8 @@ using TPVelkartea.Ereduak;
 namespace TPVelkartea;
 
 /// <summary>
-/// ERRESERBAK fitxa: jantokiaren planoa marraztu eta mahaiak erreserbatu.
+/// ERRESERBAK fitxa: jantokiaren planoa marraztu eta mahaiak erreserbatu,
+/// aldatu eta ezabatu. Erreserba bat data zehaztuta edo data gabe egin daiteke.
 /// </summary>
 public partial class LeihoNagusia
 {
@@ -22,7 +24,8 @@ public partial class LeihoNagusia
         new Mahaia(6, 8, 685, 350, 122, 70, false)
     };
 
-    private int _aukeratutakoMahaia = 0;   // 0 = ez dago mahairik aukeratuta
+    private int _aukeratutakoMahaia = 0;          // 0 = ez dago mahairik aukeratuta
+    private Erreserba? _aldatzekoErreserba;       // null = erreserba berria; bestela, aldatzen ari garena
 
     private void HasieratuErreserbak()
     {
@@ -45,14 +48,17 @@ public partial class LeihoNagusia
         return (string)TxandaKutxa.SelectedItem;
     }
 
-    private DateTime AukeratutakoData()
+    /// <summary>
+    /// Aukeratutako data "uuuu-hh-ee" formatuan, edo "" data gabe bada.
+    /// </summary>
+    private string AukeratutakoData()
     {
-        if (DataAukeratzailea.SelectedDate == null)
+        if (DataGabeKutxa.IsChecked == true || DataAukeratzailea.SelectedDate == null)
         {
-            return DateTime.Today;
+            return "";
         }
 
-        return DataAukeratzailea.SelectedDate.Value;
+        return DataAukeratzailea.SelectedDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
     // =====================================================================
@@ -60,17 +66,34 @@ public partial class LeihoNagusia
     // =====================================================================
 
     /// <summary>
-    /// Planoa berriz marrazten du eta erreserben zerrenda eguneratzen du.
+    /// Zerbitzaritik erreserbak hartu, planoa berriz marraztu eta zerrenda eguneratu.
     /// </summary>
-    private void KargatuMahaiak()
+    private async Task KargatuMahaiak()
     {
-        List<Erreserba> erreserbak = _datuBasea.LortuErreserbak(AukeratutakoData(), AukeratutakoTxanda());
+        if (_erabiltzailea == null)
+        {
+            return;   // saioa hasi gabe ez dago zer kargatu
+        }
 
-        // Erreserbatuta dauden mahaien zenbakiak
+        List<Erreserba> erreserbak;
+        try
+        {
+            erreserbak = await _zerbitzaria.LortuErreserbakAsync(AukeratutakoData(), AukeratutakoTxanda());
+        }
+        catch (InvalidOperationException errorea)
+        {
+            ErakutsiMezua(ErreserbaMezua, errorea.Message, false);
+            return;
+        }
+
+        // Erreserbatuta dauden mahaien zenbakiak (aldatzen ari garen erreserba izan ezik)
         List<int> erreserbatuak = new List<int>();
         foreach (Erreserba erreserba in erreserbak)
         {
-            erreserbatuak.Add(erreserba.MahaiZenbakia);
+            if (_aldatzekoErreserba == null || erreserba.Id != _aldatzekoErreserba.Id)
+            {
+                erreserbatuak.Add(erreserba.MahaiZenbakia);
+            }
         }
 
         Planoa.Children.Clear();
@@ -235,24 +258,40 @@ public partial class LeihoNagusia
     //  EKINTZAK
     // =====================================================================
 
-    private void Mahaia_Click(object sender, MouseButtonEventArgs e)
+    private async void Mahaia_Click(object sender, MouseButtonEventArgs e)
     {
         Mahaia mahaia = (Mahaia)((Border)sender).Tag;
         _aukeratutakoMahaia = mahaia.Zenbakia;
         MahaiaTestua.Text = $"{mahaia.Zenbakia}. mahaia  ·  {mahaia.Eserlekuak} eserleku";
         ErreserbaMezua.Text = "";
-        KargatuMahaiak();   // aukeratutako mahaia nabarmentzeko
+        await KargatuMahaiak();   // aukeratutako mahaia nabarmentzeko
     }
 
-    private void DataEdoTxanda_Changed(object sender, SelectionChangedEventArgs e)
+    private async void DataEdoTxanda_Changed(object sender, SelectionChangedEventArgs e)
     {
-        // Data edo txanda aldatzean, aurreko aukeraketa ez da baliagarria
+        // Data edo txanda aldatzean, aurreko mahai-aukeraketa ez da baliagarria
         _aukeratutakoMahaia = 0;
         MahaiaTestua.Text = "Aukeratu mahai bat planoan";
-        KargatuMahaiak();
+        await KargatuMahaiak();
     }
 
-    private void Erreserbatu_Click(object sender, RoutedEventArgs e)
+    private async void DataGabe_Changed(object sender, RoutedEventArgs e)
+    {
+        bool dataGabe = DataGabeKutxa.IsChecked == true;
+        DataAukeratzailea.IsEnabled = !dataGabe;
+        ErreserbaZerrendaIzenburua.Text = dataGabe
+            ? "TXANDA HONETAKO ERRESERBA GUZTIAK"
+            : "EGUN ETA TXANDA HONETAKO ERRESERBAK";
+
+        _aukeratutakoMahaia = 0;
+        MahaiaTestua.Text = "Aukeratu mahai bat planoan";
+        await KargatuMahaiak();
+    }
+
+    /// <summary>
+    /// Erreserba berria gorde, edo aldatzen ari garena gorde.
+    /// </summary>
+    private async void Erreserbatu_Click(object sender, RoutedEventArgs e)
     {
         if (_aukeratutakoMahaia == 0)
         {
@@ -260,38 +299,94 @@ public partial class LeihoNagusia
             return;
         }
 
-        if (DataAukeratzailea.SelectedDate == null)
+        if (DataGabeKutxa.IsChecked != true && DataAukeratzailea.SelectedDate == null)
         {
-            ErakutsiMezua(ErreserbaMezua, "Aukeratu data bat.", false);
+            ErakutsiMezua(ErreserbaMezua, "Aukeratu data bat edo markatu \"Data zehaztu gabe\".", false);
             return;
         }
 
-        DateTime data = DataAukeratzailea.SelectedDate.Value;
-        if (data < DateTime.Today)
-        {
-            ErakutsiMezua(ErreserbaMezua, "Ezin da iraganeko egun batean erreserbatu.", false);
-            return;
-        }
-
-        string txanda = AukeratutakoTxanda();
+        Erreserba erreserba = new Erreserba();
+        erreserba.MahaiZenbakia = _aukeratutakoMahaia;
+        erreserba.Data = AukeratutakoData();
+        erreserba.Txanda = AukeratutakoTxanda();
 
         try
         {
-            _datuBasea.GordeErreserba(_aukeratutakoMahaia, data, txanda, _erabiltzailea!.Izena);
-            ErakutsiMezua(ErreserbaMezua, $"Erreserba gordeta: {_aukeratutakoMahaia}. mahaia, {data:yyyy-MM-dd}, {txanda}.", true);
+            if (_aldatzekoErreserba == null)
+            {
+                await _zerbitzaria.GordeErreserbaAsync(erreserba);
+                ErakutsiMezua(ErreserbaMezua, $"Erreserba gordeta: {erreserba.MahaiZenbakia}. mahaia, {DataTestua(erreserba.Data)}, {erreserba.Txanda}.", true);
+            }
+            else
+            {
+                erreserba.Id = _aldatzekoErreserba.Id;
+                await _zerbitzaria.AldatuErreserbaAsync(erreserba);
+                ErakutsiMezua(ErreserbaMezua, $"Erreserba aldatuta: {erreserba.MahaiZenbakia}. mahaia, {DataTestua(erreserba.Data)}, {erreserba.Txanda}.", true);
+            }
 
-            _aukeratutakoMahaia = 0;
-            MahaiaTestua.Text = "Aukeratu mahai bat planoan";
+            AmaituErreserbaAldaketa();
         }
         catch (InvalidOperationException errorea)
         {
             ErakutsiMezua(ErreserbaMezua, errorea.Message, false);
         }
 
-        KargatuMahaiak();
+        await KargatuMahaiak();
     }
 
-    private void EzeztatuErreserba_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Zerrendako erreserba bat formularioan kargatzen du aldatu ahal izateko.
+    /// </summary>
+    private async void AldatuErreserba_Click(object sender, RoutedEventArgs e)
+    {
+        if (ErreserbaZerrenda.SelectedItem is not Erreserba erreserba)
+        {
+            ErakutsiMezua(ErreserbaMezua, "Aukeratu zerrendako erreserba bat.", false);
+            return;
+        }
+
+        _aldatzekoErreserba = erreserba;
+
+        // Formularioa erreserbaren datuekin bete (gertaerek mahaia "ahazten" dute,
+        // horregatik mahaia amaieran jartzen da)
+        DataGabeKutxa.IsChecked = erreserba.Data == "";
+        if (erreserba.Data != "")
+        {
+            DataAukeratzailea.SelectedDate = DateTime.ParseExact(erreserba.Data, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        }
+        TxandaKutxa.SelectedItem = erreserba.Txanda;
+        _aukeratutakoMahaia = erreserba.MahaiZenbakia;
+
+        ErreserbaIzenburua.Text = "ERRESERBA ALDATZEN";
+        MahaiaTestua.Text = $"{erreserba.MahaiZenbakia}. mahaia (aldatu data, txanda edo mahaia)";
+        ErreserbatuBotoia.Content = "GORDE ALDAKETAK  ✓";
+        AldaketaUtziBotoia.Visibility = Visibility.Visible;
+        ErreserbaMezua.Text = "";
+
+        await KargatuMahaiak();
+    }
+
+    private async void AldaketaUtzi_Click(object sender, RoutedEventArgs e)
+    {
+        AmaituErreserbaAldaketa();
+        ErreserbaMezua.Text = "";
+        await KargatuMahaiak();
+    }
+
+    /// <summary>
+    /// Formularioa "erreserba berria" modura itzultzen du.
+    /// </summary>
+    private void AmaituErreserbaAldaketa()
+    {
+        _aldatzekoErreserba = null;
+        _aukeratutakoMahaia = 0;
+        ErreserbaIzenburua.Text = "ERRESERBA BERRIA";
+        MahaiaTestua.Text = "Aukeratu mahai bat planoan";
+        ErreserbatuBotoia.Content = "ERRESERBATU MAHAI HAU  →";
+        AldaketaUtziBotoia.Visibility = Visibility.Collapsed;
+    }
+
+    private async void EzabatuErreserba_Click(object sender, RoutedEventArgs e)
     {
         if (ErreserbaZerrenda.SelectedItem is not Erreserba erreserba)
         {
@@ -300,51 +395,31 @@ public partial class LeihoNagusia
         }
 
         MessageBoxResult erantzuna = MessageBox.Show(
-            $"{erreserba.MahaiZenbakia}. mahaiaren erreserba ezeztatu nahi duzu?",
-            "Erreserba ezeztatu",
+            $"{erreserba.MahaiZenbakia}. mahaiaren erreserba ({DataTestua(erreserba.Data)}, {erreserba.Txanda}) ezabatu nahi duzu?",
+            "Erreserba ezabatu",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
 
-        if (erantzuna == MessageBoxResult.Yes)
+        if (erantzuna != MessageBoxResult.Yes)
         {
-            try
-            {
-                _datuBasea.EzabatuErreserba(erreserba.Id, _erabiltzailea!.Izena, _erabiltzailea.AdministratzaileaDa());
-                ErakutsiMezua(ErreserbaMezua, "Erreserba ezeztatuta.", true);
-            }
-            catch (InvalidOperationException errorea)
-            {
-                ErakutsiMezua(ErreserbaMezua, errorea.Message, false);
-            }
-            KargatuMahaiak();
-        }
-    }
-
-    private void AldatuErreserba_Click(object sender, RoutedEventArgs e)
-    {
-        if (ErreserbaZerrenda.SelectedItem is not Erreserba erreserba)
-        {
-            ErakutsiMezua(ErreserbaMezua, "Aukeratu zerrendako erreserba bat.", false);
-            return;
-        }
-
-        if (_aukeratutakoMahaia == 0 || DataAukeratzailea.SelectedDate is null)
-        {
-            ErakutsiMezua(ErreserbaMezua, "Aukeratu mahai eta data berriak.", false);
             return;
         }
 
         try
         {
-            _datuBasea.AldatuErreserba(erreserba.Id, _aukeratutakoMahaia, DataAukeratzailea.SelectedDate.Value, AukeratutakoTxanda(), _erabiltzailea!.Izena, _erabiltzailea.AdministratzaileaDa());
-            ErakutsiMezua(ErreserbaMezua, "Erreserba aldatuta.", true);
-            _aukeratutakoMahaia = 0;
-            MahaiaTestua.Text = "Aukeratu mahai bat planoan";
-            KargatuMahaiak();
+            await _zerbitzaria.EzabatuErreserbaAsync(erreserba.Id);
+            ErakutsiMezua(ErreserbaMezua, "Erreserba ezabatuta.", true);
         }
         catch (InvalidOperationException errorea)
         {
             ErakutsiMezua(ErreserbaMezua, errorea.Message, false);
         }
+
+        await KargatuMahaiak();
+    }
+
+    private static string DataTestua(string data)
+    {
+        return data == "" ? "data gabe" : data;
     }
 }

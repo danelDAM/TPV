@@ -11,6 +11,7 @@ namespace TPVelkartea;
 public partial class LeihoNagusia
 {
     private readonly List<SaskiLerroa> _saskia = new List<SaskiLerroa>();
+    private List<Produktua> _produktuak = new List<Produktua>();   // zerbitzaritik jasotako katalogoa
 
     private string _kategoria = "";       // "" = kategoria guztiak
     private string _kopuruaTestua = "";   // teklatuarekin idatzitako zenbakia
@@ -19,12 +20,33 @@ public partial class LeihoNagusia
     //  PRODUKTUEN KATALOGOA
     // =====================================================================
 
-    private void KargatuProduktuak()
+    /// <summary>
+    /// Produktuak zerbitzaritik kargatu eta katalogoa erakutsi.
+    /// </summary>
+    private async Task KargatuProduktuak()
+    {
+        try
+        {
+            _produktuak = await _zerbitzaria.LortuProduktuakAsync();
+        }
+        catch (InvalidOperationException errorea)
+        {
+            ErakutsiMezua(SalmentaMezua, errorea.Message, false);
+        }
+
+        ErakutsiProduktuak();
+    }
+
+    /// <summary>
+    /// Memorian dauden produktuak iragazi (kategoria + bilaketa) eta txartelak marraztu.
+    /// Ez dio zerbitzariari deitzen, beraz azkarra da.
+    /// </summary>
+    private void ErakutsiProduktuak()
     {
         ProduktuPanela.Children.Clear();
         string bilaketa = BilaketaKutxa.Text.Trim().ToLower();
 
-        foreach (Produktua produktua in _datuBasea.LortuProduktuak())
+        foreach (Produktua produktua in _produktuak)
         {
             bool kategoriaZuzena = _kategoria == "" || produktua.Kategoria == _kategoria;
             bool bilaketaZuzena = produktua.Izena.ToLower().Contains(bilaketa);
@@ -151,12 +173,12 @@ public partial class LeihoNagusia
         sakatutakoa.Background = Kolorea("#5B4BDB");
         sakatutakoa.Foreground = Brushes.White;
 
-        KargatuProduktuak();
+        ErakutsiProduktuak();
     }
 
     private void Bilaketa_TextChanged(object sender, TextChangedEventArgs e)
     {
-        KargatuProduktuak();
+        ErakutsiProduktuak();
     }
 
     // =====================================================================
@@ -288,7 +310,11 @@ public partial class LeihoNagusia
         SalmentaMezua.Text = "";
     }
 
-    private void Ordaindu_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Erosketa baieztatu: zerbitzariak salmenta gorde eta stocka jaisten du.
+    /// Ondoren ticket-a erakusten da, inprimatu ahal izateko.
+    /// </summary>
+    private async void Ordaindu_Click(object sender, RoutedEventArgs e)
     {
         if (_saskia.Count == 0)
         {
@@ -296,25 +322,45 @@ public partial class LeihoNagusia
             return;
         }
 
+        MessageBoxResult erantzuna = MessageBox.Show(
+            $"Erosketa baieztatu?\n\nProduktu kopurua: {_saskia.Count}\nGuztira: {Euroak(SaskiarenGuztira())}",
+            "Ordaindu",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (erantzuna != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        OrdainduBotoia.IsEnabled = false;
         try
         {
-            decimal guztira = SaskiarenGuztira();
-            int salmentaZenbakia = _datuBasea.GordeSalmenta(_erabiltzailea!.Izena, _saskia);
+            Salmenta salmenta = await _zerbitzaria.GordeSalmentaAsync(_saskia);
 
-            ErakutsiMezua(SalmentaMezua, $"Ordainketa eginda. Ticket zk. {salmentaZenbakia}  ·  Guztira: {Euroak(guztira)}", true);
+            ErakutsiMezua(SalmentaMezua, $"Ordainketa eginda. Ticket zk. {salmenta.Id}  ·  Guztira: {Euroak(salmenta.Guztira)}", true);
             _saskia.Clear();
             EguneratuSaskia();
+
+            // Ticket-a erakutsi (eta, nahi bada, inprimatu)
+            TicketLeihoa ticketa = new TicketLeihoa(salmenta);
+            ticketa.Owner = this;
+            ticketa.ShowDialog();
         }
         catch (InvalidOperationException errorea)
         {
             ErakutsiMezua(SalmentaMezua, errorea.Message, false);
         }
+        finally
+        {
+            OrdainduBotoia.IsEnabled = true;
+        }
 
         // Stocka aldatu denez, katalogoa (eta administrazioa) berriz kargatu
-        KargatuProduktuak();
-        if (_erabiltzailea!.AdministratzaileaDa())
+        await KargatuProduktuak();
+        if (_erabiltzailea != null && _erabiltzailea.AdministratzaileaDa())
         {
-            KargatuAdministrazioa();
+            await KargatuAdministrazioa();
         }
     }
 }

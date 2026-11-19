@@ -1,5 +1,5 @@
 <Solution>
+  <Project Path="TPVelkartea.Komuna/TPVelkartea.Komuna.csproj" />
+  <Project Path="TPVelkartea.Zerbitzaria/TPVelkartea.Zerbitzaria.csproj" />
   <Project Path="TPVelkartea/TPVelkartea.csproj" />
-  <Project Path="TPVelkartea.Protocol/TPVelkartea.Protocol.csproj" />
-  <Project Path="TPVelkartea.Server/TPVelkartea.Server.csproj" />
 </Solution>

@@ -1,5 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Bezeroa: WPF aplikazioa. Datu guztiak zerbitzaritik hartzen ditu TCP bidez. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -9,8 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.15" />
-    <ProjectReference Include="..\TPVelkartea.Protocol\TPVelkartea.Protocol.csproj" />
+    <ProjectReference Include="..\TPVelkartea.Komuna\TPVelkartea.Komuna.csproj" />
   </ItemGroup>
 
 </Project>

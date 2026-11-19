@@ -1,7 +1,7 @@
 namespace TPVelkartea.Ereduak;
 
 /// <summary>
-/// Amaitutako salmenta baten goiburua (administrazioko zerrendan erakusteko).
+/// Amaitutako salmenta bat (ticket-a).
 /// </summary>
 public class Salmenta
 {
@@ -9,4 +9,7 @@ public class Salmenta
     public string Erabiltzailea { get; set; } = "";
     public string DataOrdua { get; set; } = "";
     public decimal Guztira { get; set; }
+
+    // Ticket-eko lerroak (salmenta egin berritan bakarrik betetzen da)
+    public List<SaskiLerroa> Lerroak { get; set; } = new List<SaskiLerroa>();
 }

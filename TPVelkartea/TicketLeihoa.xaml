@@ -1,0 +1,33 @@
+<Window x:Class="TPVelkartea.TicketLeihoa"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ticket-a" Width="420" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Background="#F6F7FB" FontFamily="Segoe UI">
+
+    <StackPanel Margin="20">
+
+        <!-- Ticket-a bera (hau da inprimatzen den zatia) -->
+        <Border x:Name="TicketPapera" Background="White" Padding="22" BorderBrush="#E5E7EB" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="TPV ELKARTEA" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="Elkarte gastronomikoa" Foreground="#6B7280" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                <TextBlock x:Name="GoiburuaTestua" FontFamily="Consolas" FontSize="12"/>
+                <TextBlock Text="----------------------------------------" FontFamily="Consolas" FontSize="12"/>
+                <TextBlock x:Name="LerroakTestua" FontFamily="Consolas" FontSize="12"/>
+                <TextBlock Text="----------------------------------------" FontFamily="Consolas" FontSize="12"/>
+                <TextBlock x:Name="GuztiraTestua" FontFamily="Consolas" FontSize="16" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,6,0,0"/>
+
+                <TextBlock Text="Eskerrik asko!" HorizontalAlignment="Center" Margin="0,16,0,0" Foreground="#6B7280"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Botoiak (ez dira inprimatzen) -->
+        <UniformGrid Columns="2" Margin="0,14,0,0">
+            <Button Content="🖨  Inprimatu" Height="40" Margin="0,0,5,0" FontWeight="SemiBold"
+                    Background="#5B4BDB" Foreground="White" BorderThickness="0" Click="Inprimatu_Click"/>
+            <Button Content="Itxi" Height="40" Margin="5,0,0,0" FontWeight="SemiBold"
+                    Background="#E9E7FF" Foreground="#40369C" BorderThickness="0" IsCancel="True" Click="Itxi_Click"/>
+        </UniformGrid>
+    </StackPanel>
+</Window>

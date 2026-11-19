@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using TPVelkartea.Ereduak;
@@ -5,48 +6,56 @@ using TPVelkartea.Ereduak;
 namespace TPVelkartea;
 
 /// <summary>
-/// ADMINISTRAZIOA fitxa: produktuak, erabiltzaileak eta salmenten historia.
-/// Administratzaileek bakarrik ikusten dute.
+/// ADMINISTRAZIOA fitxa: produktuak eta biltegiko stocka, erabiltzaileak
+/// eta salmenten historia. Administratzaileek bakarrik ikusten dute.
+/// (Zerbitzariak ere egiaztatzen du administratzailea dela.)
 /// </summary>
 public partial class LeihoNagusia
 {
-    private void HasieratuAdministrazioa()
+    private async Task HasieratuAdministrazioa()
     {
         ProduktuKategoriaKutxa.ItemsSource = Produktua.Kategoriak;
         ErabiltzaileRolaKutxa.ItemsSource = Erabiltzailea.Rolak;
 
         GarbituProduktuFormularioa();
         GarbituErabiltzaileFormularioa();
-        KargatuAdministrazioa();
+        await KargatuAdministrazioa();
     }
 
-    private void KargatuAdministrazioa()
+    private async Task KargatuAdministrazioa()
     {
-        ProduktuTaula.ItemsSource = _datuBasea.LortuProduktuak();
-        ErabiltzaileTaula.ItemsSource = _datuBasea.LortuErabiltzaileak();
-
-        List<Salmenta> salmentak = _datuBasea.LortuSalmentak();
-        SalmentaTaula.ItemsSource = salmentak;
-
-        // Gaurko salmenten laburpena
-        string gaur = DateTime.Today.ToString("yyyy-MM-dd");
-        int gaurkoKopurua = 0;
-        decimal gaurkoGuztira = 0;
-
-        foreach (Salmenta salmenta in salmentak)
+        try
         {
-            if (salmenta.DataOrdua.StartsWith(gaur))
-            {
-                gaurkoKopurua++;
-                gaurkoGuztira += salmenta.Guztira;
-            }
-        }
+            ProduktuTaula.ItemsSource = await _zerbitzaria.LortuProduktuakAsync();
+            ErabiltzaileTaula.ItemsSource = await _zerbitzaria.LortuErabiltzaileakAsync();
 
-        GaurkoSalmentakTestua.Text = $"Gaur: {gaurkoKopurua} salmenta  ·  {Euroak(gaurkoGuztira)}";
+            List<Salmenta> salmentak = await _zerbitzaria.LortuSalmentakAsync();
+            SalmentaTaula.ItemsSource = salmentak;
+
+            // Gaurko salmenten laburpena
+            string gaur = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            int gaurkoKopurua = 0;
+            decimal gaurkoGuztira = 0;
+
+            foreach (Salmenta salmenta in salmentak)
+            {
+                if (salmenta.DataOrdua.StartsWith(gaur))
+                {
+                    gaurkoKopurua++;
+                    gaurkoGuztira += salmenta.Guztira;
+                }
+            }
+
+            GaurkoSalmentakTestua.Text = $"Gaur: {gaurkoKopurua} salmenta  ·  {Euroak(gaurkoGuztira)}";
+        }
+        catch (InvalidOperationException errorea)
+        {
+            ErakutsiMezua(ProduktuMezua, errorea.Message, false);
+        }
     }
 
     // =====================================================================
-    //  PRODUKTUAK
+    //  PRODUKTUAK ETA STOCKA
     // =====================================================================
 
     private void ProduktuTaula_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -74,10 +83,11 @@ public partial class LeihoNagusia
         ProduktuKategoriaKutxa.SelectedIndex = 0;
         ProduktuPrezioaKutxa.Text = "";
         ProduktuStockaKutxa.Text = "";
+        StockGehitzeaKutxa.Text = "";
         ProduktuMezua.Text = "";
     }
 
-    private void GordeProduktua_Click(object sender, RoutedEventArgs e)
+    private async void GordeProduktua_Click(object sender, RoutedEventArgs e)
     {
         string izena = ProduktuIzenaKutxa.Text.Trim();
 
@@ -115,15 +125,56 @@ public partial class LeihoNagusia
         produktua.Prezioa = prezioa;
         produktua.Stocka = stocka;
 
-        _datuBasea.GordeProduktua(produktua);
+        try
+        {
+            await _zerbitzaria.GordeProduktuaAsync(produktua);
+            GarbituProduktuFormularioa();
+            ErakutsiMezua(ProduktuMezua, $"\"{izena}\" gordeta.", true);
+        }
+        catch (InvalidOperationException errorea)
+        {
+            ErakutsiMezua(ProduktuMezua, errorea.Message, false);
+        }
 
-        KargatuAdministrazioa();
-        KargatuProduktuak();
-        GarbituProduktuFormularioa();
-        ErakutsiMezua(ProduktuMezua, $"\"{izena}\" gordeta.", true);
+        await KargatuAdministrazioa();
+        await KargatuProduktuak();
     }
 
-    private void EzabatuProduktua_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Biltegira unitate berriak sartu: hautatutako produktuaren stockari kopurua gehitzen dio.
+    /// Batuketa zerbitzarian egiten da (Stocka = Stocka + kopurua), beraz bi
+    /// administratzailek aldi berean gehitzen badute ere, ez da ezer galtzen.
+    /// </summary>
+    private async void GehituStocka_Click(object sender, RoutedEventArgs e)
+    {
+        if (ProduktuTaula.SelectedItem is not Produktua produktua)
+        {
+            ErakutsiMezua(ProduktuMezua, "Aukeratu taulako produktu bat.", false);
+            return;
+        }
+
+        if (!int.TryParse(StockGehitzeaKutxa.Text, out int kopurua) || kopurua <= 0)
+        {
+            ErakutsiMezua(ProduktuMezua, "Idatzi gehitu nahi den unitate kopurua (0 baino handiagoa).", false);
+            return;
+        }
+
+        try
+        {
+            await _zerbitzaria.GehituStockaAsync(produktua.Id, kopurua);
+            GarbituProduktuFormularioa();
+            ErakutsiMezua(ProduktuMezua, $"{kopurua} unitate gehituta: {produktua.Izena}.", true);
+        }
+        catch (InvalidOperationException errorea)
+        {
+            ErakutsiMezua(ProduktuMezua, errorea.Message, false);
+        }
+
+        await KargatuAdministrazioa();
+        await KargatuProduktuak();
+    }
+
+    private async void EzabatuProduktua_Click(object sender, RoutedEventArgs e)
     {
         if (ProduktuTaula.SelectedItem is not Produktua produktua)
         {
@@ -137,14 +188,24 @@ public partial class LeihoNagusia
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
 
-        if (erantzuna == MessageBoxResult.Yes)
+        if (erantzuna != MessageBoxResult.Yes)
         {
-            _datuBasea.EzabatuProduktua(produktua.Id);
-            KargatuAdministrazioa();
-            KargatuProduktuak();
+            return;
+        }
+
+        try
+        {
+            await _zerbitzaria.EzabatuProduktuaAsync(produktua.Id);
             GarbituProduktuFormularioa();
             ErakutsiMezua(ProduktuMezua, "Produktua ezabatuta.", true);
         }
+        catch (InvalidOperationException errorea)
+        {
+            ErakutsiMezua(ProduktuMezua, errorea.Message, false);
+        }
+
+        await KargatuAdministrazioa();
+        await KargatuProduktuak();
     }
 
     /// <summary>
@@ -153,8 +214,7 @@ public partial class LeihoNagusia
     private static bool IrakurriPrezioa(string testua, out decimal prezioa)
     {
         string normalizatua = testua.Trim().Replace(',', '.');
-        bool zuzena = decimal.TryParse(normalizatua, System.Globalization.NumberStyles.Number,
-            System.Globalization.CultureInfo.InvariantCulture, out prezioa);
+        bool zuzena = decimal.TryParse(normalizatua, NumberStyles.Number, CultureInfo.InvariantCulture, out prezioa);
 
         return zuzena && prezioa >= 0;
     }
@@ -189,7 +249,7 @@ public partial class LeihoNagusia
         ErabiltzaileMezua.Text = "";
     }
 
-    private void GordeErabiltzailea_Click(object sender, RoutedEventArgs e)
+    private async void GordeErabiltzailea_Click(object sender, RoutedEventArgs e)
     {
         string izena = ErabiltzaileIzenaKutxa.Text.Trim();
         string pasahitza = ErabiltzailePasahitzaKutxa.Password;
@@ -214,27 +274,17 @@ public partial class LeihoNagusia
             return;
         }
 
-        string rola = (string)ErabiltzaileRolaKutxa.SelectedItem;
-
-        // Administratzaileak ezin dio bere buruari rola kendu
-        if (hautatua != null && hautatua.Id == _erabiltzailea!.Id && rola != Erabiltzailea.Administratzailea)
-        {
-            ErakutsiMezua(ErabiltzaileMezua, "Ezin duzu zure administratzaile-rola kendu.", false);
-            return;
-        }
-
         Erabiltzailea erabiltzailea = new Erabiltzailea();
         if (hautatua != null)
         {
             erabiltzailea.Id = hautatua.Id;
         }
         erabiltzailea.Izena = izena;
-        erabiltzailea.Rola = rola;
+        erabiltzailea.Rola = (string)ErabiltzaileRolaKutxa.SelectedItem;
 
         try
         {
-            _datuBasea.GordeErabiltzailea(erabiltzailea, pasahitza);
-            KargatuAdministrazioa();
+            await _zerbitzaria.GordeErabiltzaileaAsync(erabiltzailea, pasahitza);
             GarbituErabiltzaileFormularioa();
             ErakutsiMezua(ErabiltzaileMezua, $"\"{izena}\" gordeta.", true);
         }
@@ -242,19 +292,15 @@ public partial class LeihoNagusia
         {
             ErakutsiMezua(ErabiltzaileMezua, errorea.Message, false);
         }
+
+        await KargatuAdministrazioa();
     }
 
-    private void EzabatuErabiltzailea_Click(object sender, RoutedEventArgs e)
+    private async void EzabatuErabiltzailea_Click(object sender, RoutedEventArgs e)
     {
         if (ErabiltzaileTaula.SelectedItem is not Erabiltzailea erabiltzailea)
         {
             ErakutsiMezua(ErabiltzaileMezua, "Aukeratu taulako erabiltzaile bat.", false);
-            return;
-        }
-
-        if (erabiltzailea.Id == _erabiltzailea!.Id)
-        {
-            ErakutsiMezua(ErabiltzaileMezua, "Ezin duzu zure burua ezabatu.", false);
             return;
         }
 
@@ -264,12 +310,22 @@ public partial class LeihoNagusia
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
 
-        if (erantzuna == MessageBoxResult.Yes)
+        if (erantzuna != MessageBoxResult.Yes)
         {
-            _datuBasea.EzabatuErabiltzailea(erabiltzailea.Id);
-            KargatuAdministrazioa();
+            return;
+        }
+
+        try
+        {
+            await _zerbitzaria.EzabatuErabiltzaileaAsync(erabiltzailea.Id);
             GarbituErabiltzaileFormularioa();
             ErakutsiMezua(ErabiltzaileMezua, "Erabiltzailea ezabatuta.", true);
         }
+        catch (InvalidOperationException errorea)
+        {
+            ErakutsiMezua(ErabiltzaileMezua, errorea.Message, false);
+        }
+
+        await KargatuAdministrazioa();
     }
 }

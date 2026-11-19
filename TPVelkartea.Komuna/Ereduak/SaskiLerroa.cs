@@ -5,8 +5,13 @@ namespace TPVelkartea.Ereduak;
 /// </summary>
 public class SaskiLerroa
 {
-    public Produktua Produktua { get; set; }
+    public Produktua Produktua { get; set; } = new Produktua();
     public int Kopurua { get; set; }
+
+    // Konstruktore hutsa: JSON-etik objektua sortzeko behar da
+    public SaskiLerroa()
+    {
+    }
 
     public SaskiLerroa(Produktua produktua, int kopurua)
     {

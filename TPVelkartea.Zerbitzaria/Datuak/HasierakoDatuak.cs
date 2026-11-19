@@ -1,6 +1,6 @@
 using TPVelkartea.Ereduak;
 
-namespace TPVelkartea.Datuak;
+namespace TPVelkartea.Zerbitzaria.Datuak;
 
 /// <summary>
 /// Datu-basea hutsik dagoenean sartzen diren datuak (seed-a).
