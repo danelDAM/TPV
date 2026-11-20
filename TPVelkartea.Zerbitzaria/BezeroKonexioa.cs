@@ -7,23 +7,25 @@ using TPVelkartea.Zerbitzaria.Datuak;
 
 namespace TPVelkartea.Zerbitzaria;
 
-/// <summary>
-/// Bezero bakar baten konexioa. Bere hari propioan exekutatzen da.
-///
-/// Protokoloa: bezeroak lerro bat bidaltzen du (Eskaera JSON-en) eta
-/// zerbitzariak lerro bat itzultzen du (Erantzuna JSON-en).
-///
-/// Saioa hasi duen erabiltzailea hemen gordetzen da. Horregatik zerbitzariak
-/// badaki nor den eta zein rol duen: bezeroak ezin du "administratzailea naiz" esan.
-/// </summary>
 public class BezeroKonexioa
 {
+    // ================================================================
+    //  DATOS DE LA CONEXIÓN
+    // ================================================================
+
+    // Cliente TCP al que estamos atendiendo.
     private readonly TcpClient _bezeroa;
+
+    // Base de datos compartida por el servidor.
     private readonly DatuBasea _datuBasea;
+
+    // Servidor principal, utilizado para actualizar el contador de clientes.
     private readonly Zerbitzaria _zerbitzaria;
 
-    private Erabiltzailea? _erabiltzailea;   // null = saioa ez da hasi
+    // Usuario que ha iniciado sesión en esta conexión.
+    private Erabiltzailea? _erabiltzailea;
 
+    // Guardamos los objetos que necesita esta conexión.
     public BezeroKonexioa(TcpClient bezeroa, DatuBasea datuBasea, Zerbitzaria zerbitzaria)
     {
         _bezeroa = bezeroa;
@@ -31,96 +33,127 @@ public class BezeroKonexioa
         _zerbitzaria = zerbitzaria;
     }
 
-    /// <summary>
-    /// Hariaren metodo nagusia: bezeroa deskonektatu arte eskaerak irakurri eta erantzun.
-    /// </summary>
+    // ================================================================
+    //  ATENDER AL CLIENTE
+    // ================================================================
+
+    // Lee peticiones del cliente hasta que se desconecta.
     public void Exekutatu()
     {
         try
         {
+            // Obtenemos el canal de comunicación TCP.
             NetworkStream fluxua = _bezeroa.GetStream();
+
+            // Creamos un lector y un escritor de texto.
             StreamReader irakurlea = new StreamReader(fluxua, Encoding.UTF8);
             StreamWriter idazlea = new StreamWriter(fluxua, new UTF8Encoding(false));
             idazlea.AutoFlush = true;
 
+            // Un cliente puede enviar varias peticiones durante su sesión.
             while (true)
             {
                 string? lerroa = irakurlea.ReadLine();
+
                 if (lerroa == null)
                 {
-                    break;   // bezeroak konexioa itxi du
+                    // El cliente ha cerrado la conexión.
+                    break;
                 }
 
+                // Procesamos la petición y creamos una respuesta.
                 Erantzuna erantzuna = Prozesatu(lerroa);
+
+                // Convertimos la respuesta a JSON y la enviamos.
                 idazlea.WriteLine(JsonSerializer.Serialize(erantzuna));
             }
         }
         catch (IOException)
         {
-            // Konexioa bat-batean moztu da (adibidez, bezeroaren programa itxi da)
+            // La conexión se ha cortado de forma inesperada.
         }
         finally
         {
+            // Cerramos el cliente y actualizamos el contador del servidor.
             _bezeroa.Close();
             _zerbitzaria.BezeroaDeskonektatu();
         }
     }
 
+    // ================================================================
+    //  PROCESAR UNA PETICIÓN
+    // ================================================================
+
+    // Convierte el JSON recibido, ejecuta la acción y crea una respuesta.
     private Erantzuna Prozesatu(string lerroa)
     {
-        Erantzuna erantzuna = new Erantzuna();
-
         try
         {
+            // Convertimos el texto JSON en una petición.
             Eskaera? eskaera = JsonSerializer.Deserialize<Eskaera>(lerroa);
+
             if (eskaera == null)
             {
                 throw new InvalidOperationException("Eskaera hutsa.");
             }
 
+            // Ejecutamos la acción solicitada por el cliente.
             object? emaitza = ExekutatuEkintza(eskaera);
-            erantzuna.Ondo = true;
-            erantzuna.Datuak = JsonSerializer.Serialize(emaitza);
+
+            // Devolvemos una respuesta correcta con el resultado.
+            return new Erantzuna
+            {
+                Ondo = true,
+                Datuak = JsonSerializer.Serialize(emaitza)
+            };
         }
         catch (InvalidOperationException errorea)
         {
-            // Erabiltzaileari erakusteko moduko erroreak (stock gutxi, mahaia okupatuta...)
-            erantzuna.Ondo = false;
-            erantzuna.Mezua = errorea.Message;
+            // Error esperado: se muestra directamente al usuario.
+            return new Erantzuna
+            {
+                Ondo = false,
+                Mezua = errorea.Message
+            };
         }
         catch (Exception errorea)
         {
-            // Ustekabeko erroreak: kontsolan idatzi eta bezeroari jakinarazi
+            // Error inesperado: se registra en el servidor y se avisa al cliente.
             Zerbitzaria.Idatzi("ERROREA: " + errorea);
-            erantzuna.Ondo = false;
-            erantzuna.Mezua = "Zerbitzariko errorea: " + errorea.Message;
-        }
 
-        return erantzuna;
+            return new Erantzuna
+            {
+                Ondo = false,
+                Mezua = "Zerbitzariko errorea: " + errorea.Message
+            };
+        }
     }
 
-    /// <summary>
-    /// Ekintza bakoitza dagokion DatuBasea metodora bideratzen du.
-    /// Itzultzen den objektua JSON bihurtu eta bezeroari bidaltzen zaio.
-    /// </summary>
+    // ================================================================
+    //  EJECUTAR LAS ACCIONES
+    // ================================================================
+
+    // Decide qué operación realizar según la acción recibida.
     private object? ExekutatuEkintza(Eskaera eskaera)
     {
-        // Saioa hasi gabe egin daitekeen ekintza bakarra
+        // La única acción permitida sin iniciar sesión es el login.
         if (eskaera.Ekintza == Ekintzak.SaioaHasi)
         {
             return SaioaHasi(Irakurri<SaioDatuak>(eskaera));
         }
 
+        // Todas las demás acciones necesitan una sesión iniciada.
         if (_erabiltzailea == null)
         {
             throw new InvalidOperationException("Lehenengo saioa hasi behar da.");
         }
 
+        // Escribimos en la consola qué usuario ha realizado la acción.
         Zerbitzaria.Idatzi($"{_erabiltzailea.Izena}: {eskaera.Ekintza}");
 
         switch (eskaera.Ekintza)
         {
-            // --- Produktuak ---
+            // ---------------- PRODUCTOS ----------------
             case Ekintzak.Produktuak:
                 return _datuBasea.LortuProduktuak();
 
@@ -144,7 +177,7 @@ public class BezeroKonexioa
                 _datuBasea.GehituStocka(stockDatuak.ProduktuId, stockDatuak.Kopurua);
                 return null;
 
-            // --- Erabiltzaileak ---
+            // ---------------- USUARIOS ----------------
             case Ekintzak.Erabiltzaileak:
                 AdministratzaileaBehar();
                 return _datuBasea.LortuErabiltzaileak();
@@ -159,7 +192,7 @@ public class BezeroKonexioa
                 EzabatuErabiltzailea(Irakurri<int>(eskaera));
                 return null;
 
-            // --- Salmentak ---
+            // ---------------- VENTAS ----------------
             case Ekintzak.SalmentaGorde:
                 return _datuBasea.GordeSalmenta(_erabiltzailea.Izena, Irakurri<List<SaskiLerroa>>(eskaera));
 
@@ -167,7 +200,7 @@ public class BezeroKonexioa
                 AdministratzaileaBehar();
                 return _datuBasea.LortuSalmentak();
 
-            // --- Erreserbak ---
+            // ---------------- RESERVAS ----------------
             case Ekintzak.Erreserbak:
                 ErreserbaBilaketa bilaketa = Irakurri<ErreserbaBilaketa>(eskaera);
                 return _datuBasea.LortuErreserbak(bilaketa.Data, bilaketa.Txanda);
@@ -189,23 +222,28 @@ public class BezeroKonexioa
         }
     }
 
-    // =====================================================================
-    //  EKINTZEN LOGIKA ETA BAIMENAK
-    // =====================================================================
+    // ================================================================
+    //  LOGIN Y PERMISOS
+    // ================================================================
 
+    // Comprueba las credenciales y guarda el usuario de esta conexión.
     private Erabiltzailea SaioaHasi(SaioDatuak datuak)
     {
         Erabiltzailea? erabiltzailea = _datuBasea.SaioaHasi(datuak.Izena, datuak.Pasahitza);
+
         if (erabiltzailea == null)
         {
             throw new InvalidOperationException("Erabiltzailea edo pasahitza ez da zuzena.");
         }
 
+        // Guardamos el usuario para conocer su identidad y su rol.
         _erabiltzailea = erabiltzailea;
         Zerbitzaria.Idatzi($"{erabiltzailea.Izena}-k saioa hasi du ({erabiltzailea.Rola}).");
+
         return erabiltzailea;
     }
 
+    // Solo los administradores pueden realizar ciertas operaciones.
     private void AdministratzaileaBehar()
     {
         if (!_erabiltzailea!.AdministratzaileaDa())
@@ -214,6 +252,11 @@ public class BezeroKonexioa
         }
     }
 
+    // ================================================================
+    //  PRODUCTOS Y USUARIOS
+    // ================================================================
+
+    // Valida y guarda un producto.
     private void GordeProduktua(Produktua produktua)
     {
         if (produktua.Izena.Trim() == "")
@@ -229,6 +272,7 @@ public class BezeroKonexioa
         _datuBasea.GordeProduktua(produktua);
     }
 
+    // Valida y guarda un usuario.
     private void GordeErabiltzailea(ErabiltzaileDatuak datuak)
     {
         Erabiltzailea erabiltzailea = datuak.Erabiltzailea;
@@ -251,6 +295,7 @@ public class BezeroKonexioa
         _datuBasea.GordeErabiltzailea(erabiltzailea, datuak.Pasahitza);
     }
 
+    // Elimina un usuario, excepto el usuario que está conectado.
     private void EzabatuErabiltzailea(int id)
     {
         if (id == _erabiltzailea!.Id)
@@ -261,26 +306,37 @@ public class BezeroKonexioa
         _datuBasea.EzabatuErabiltzailea(id);
     }
 
+    // ================================================================
+    //  RESERVAS Y PERMISOS SOBRE RESERVAS
+    // ================================================================
+
+    // Valida y guarda una reserva nueva.
     private void GordeErreserba(Erreserba erreserba)
     {
         ErreserbaZuzenaDa(erreserba);
 
+        // El servidor decide quién es el usuario de la reserva.
         erreserba.Id = 0;
-        erreserba.Erabiltzailea = _erabiltzailea!.Izena;   // beti saioa hasi duena
+        erreserba.Erabiltzailea = _erabiltzailea!.Izena;
+
         _datuBasea.GordeErreserba(erreserba);
     }
 
+    // Modifica una reserva después de comprobar que se puede modificar.
     private void AldatuErreserba(Erreserba berria)
     {
         ErreserbaZuzenaDa(berria);
 
+        // Recuperamos la reserva original para comprobar sus permisos.
         Erreserba zaharra = _datuBasea.LortuErreserba(berria.Id);
         BaimenaErreserbarako(zaharra);
 
+        // Mantenemos el usuario original de la reserva.
         berria.Erabiltzailea = zaharra.Erabiltzailea;
         _datuBasea.GordeErreserba(berria);
     }
 
+    // Elimina una reserva si el usuario tiene permiso.
     private void EzabatuErreserba(int id)
     {
         Erreserba erreserba = _datuBasea.LortuErreserba(id);
@@ -288,9 +344,8 @@ public class BezeroKonexioa
         _datuBasea.EzabatuErreserba(id);
     }
 
-    /// <summary>
-    /// Langile batek bere erreserbak bakarrik alda/ezaba ditzake; administratzaileak denak.
-    /// </summary>
+    // Un trabajador solo puede modificar sus reservas.
+    // Un administrador puede modificar las reservas de todos.
     private void BaimenaErreserbarako(Erreserba erreserba)
     {
         if (!_erabiltzailea!.AdministratzaileaDa() && erreserba.Erabiltzailea != _erabiltzailea.Izena)
@@ -299,6 +354,7 @@ public class BezeroKonexioa
         }
     }
 
+    // Comprueba que los datos básicos de una reserva son correctos.
     private static void ErreserbaZuzenaDa(Erreserba erreserba)
     {
         if (erreserba.MahaiZenbakia <= 0)
@@ -311,19 +367,23 @@ public class BezeroKonexioa
             throw new InvalidOperationException("Txanda ez da zuzena.");
         }
 
-        // "uuuu-hh-ee" formatuko datak testu gisa konpara daitezke
+        // Como la fecha tiene el formato yyyy-MM-dd,
+        // se puede comparar directamente como texto.
         if (erreserba.Data != "" && string.Compare(erreserba.Data, DateTime.Today.ToString("yyyy-MM-dd")) < 0)
         {
             throw new InvalidOperationException("Ezin da iraganeko egun batean erreserbatu.");
         }
     }
 
-    /// <summary>
-    /// Eskaerako JSON datuak T motako objektu bihurtzen ditu.
-    /// </summary>
+    // ================================================================
+    //  LEER LOS DATOS DE UNA PETICIÓN
+    // ================================================================
+
+    // Convierte los datos JSON de la petición al tipo necesario.
     private static T Irakurri<T>(Eskaera eskaera)
     {
         T? datuak = JsonSerializer.Deserialize<T>(eskaera.Datuak);
+
         if (datuak == null)
         {
             throw new InvalidOperationException("Eskaeraren datuak ez dira zuzenak.");

@@ -7,60 +7,85 @@ using TPVelkartea.Zerbitzaria.Datuak;
 
 namespace TPVelkartea.Zerbitzaria;
 
-/// <summary>
-/// TCP zerbitzaria. Bezeroen konexioak onartzen ditu eta bakoitzari
-/// HARI (Thread) independente bat ematen dio. Horrela bezero baten eskaera
-/// motel batek ez ditu besteak blokeatzen.
-/// Gehienez Konfigurazioa.GehienezkoBezeroak bezero onartzen dira aldi berean.
-/// </summary>
 public class Zerbitzaria
 {
+    // ================================================================
+    //  DATOS PRINCIPALES DEL SERVIDOR
+    // ================================================================
+
+    // Base de datos que utilizarán las conexiones de los clientes.
     private readonly DatuBasea _datuBasea;
+
+    // Puerto TCP en el que escuchará el servidor.
     private readonly int _ataka;
 
-    // Konektatuta dauden bezeroen kopurua. Hari batek baino gehiagok aldatzen
-    // dutenez, lock baten barruan irakurri eta aldatzen da.
-    private int _bezeroKopurua = 0;
-    private readonly object _kontagailuBlokeoa = new object();
+    // Número de clientes conectados actualmente.
+    private int _bezeroKopurua;
 
+    // Objeto utilizado para proteger el contador con lock.
+    private readonly object _blokeoKontagailua = new object();
+
+    // El servidor recibe la base de datos y el puerto al crearse.
     public Zerbitzaria(DatuBasea datuBasea, int ataka)
     {
         _datuBasea = datuBasea;
         _ataka = ataka;
     }
 
+    // ================================================================
+    //  INICIAR EL SERVIDOR
+    // ================================================================
+
+    // Empieza a escuchar conexiones de clientes.
     public void Abiarazi()
     {
-        TcpListener entzulea = new TcpListener(IPAddress.Any, _ataka);
+        // Creamos el servidor TCP usando cualquier dirección de red
+        // y el puerto configurado.
+        TcpListener entzulea =
+            new TcpListener(IPAddress.Any, _ataka);
+
         entzulea.Start();
+
         Idatzi($"Zerbitzaria martxan {_ataka} atakan. Gehienez {Konfigurazioa.GehienezkoBezeroak} bezero.");
 
+        // El servidor queda esperando clientes indefinidamente.
         while (true)
         {
-            // Bezero berri bat konektatu arte itxaroten du
+            // Esperamos hasta que un cliente se conecte.
             TcpClient bezeroa = entzulea.AcceptTcpClient();
 
+            // Comprobamos si todavía se pueden aceptar más clientes.
             if (!BezeroaOnartu())
             {
                 Idatzi("Bezero bat baztertuta: zerbitzaria beteta dago.");
+
+                // Informamos al cliente y cerramos su conexión.
                 BidaliErroreaEtaItxi(bezeroa, $"Zerbitzaria beteta dago (gehienez {Konfigurazioa.GehienezkoBezeroak} bezero). Saiatu geroago.");
                 continue;
             }
 
-            // Bezero bakoitzak bere haria
-            BezeroKonexioa konexioa = new BezeroKonexioa(bezeroa, _datuBasea, this);
-            Thread haria = new Thread(konexioa.Exekutatu);
+            // Creamos un objeto que gestionará este cliente.
+            BezeroKonexioa konexioa =
+                new BezeroKonexioa(bezeroa, _datuBasea, this);
+
+            // Cada cliente se ejecuta en su propio hilo.
+            Thread haria =
+                new Thread(konexioa.Exekutatu);
+
             haria.IsBackground = true;
             haria.Start();
         }
     }
 
-    /// <summary>
-    /// Lekua badago, kontagailua handitu eta true itzultzen du.
-    /// </summary>
+    // ================================================================
+    //  CONTROLAR LOS CLIENTES CONECTADOS
+    // ================================================================
+
+    // Devuelve true si hay espacio para otro cliente.
     private bool BezeroaOnartu()
     {
-        lock (_kontagailuBlokeoa)
+        // Solo un hilo puede consultar y modificar el contador cada vez.
+        lock (_blokeoKontagailua)
         {
             if (_bezeroKopurua >= Konfigurazioa.GehienezkoBezeroak)
             {
@@ -68,46 +93,56 @@ public class Zerbitzaria
             }
 
             _bezeroKopurua++;
+
             Idatzi($"Bezero berria konektatuta ({_bezeroKopurua}/{Konfigurazioa.GehienezkoBezeroak}).");
+
             return true;
         }
     }
 
-    /// <summary>
-    /// Bezero baten haria amaitzean deitzen da.
-    /// </summary>
+    // Se llama cuando un cliente termina su conexión.
     public void BezeroaDeskonektatu()
     {
-        lock (_kontagailuBlokeoa)
+        lock (_blokeoKontagailua)
         {
             _bezeroKopurua--;
+
             Idatzi($"Bezero bat deskonektatu da ({_bezeroKopurua}/{Konfigurazioa.GehienezkoBezeroak}).");
         }
     }
 
+    // ================================================================
+    //  RECHAZAR UN CLIENTE CUANDO EL SERVIDOR ESTÁ LLENO
+    // ================================================================
+
+    // Envía un error al cliente y cierra su conexión.
     private static void BidaliErroreaEtaItxi(TcpClient bezeroa, string mezua)
     {
         try
         {
-            Erantzuna erantzuna = new Erantzuna();
-            erantzuna.Ondo = false;
-            erantzuna.Mezua = mezua;
+            Erantzuna erantzuna = new Erantzuna
+            {
+                Ondo = false,
+                Mezua = mezua
+            };
 
-            StreamWriter idazlea = new StreamWriter(bezeroa.GetStream(), new UTF8Encoding(false));
+            StreamWriter idazlea =
+                new StreamWriter(
+                    bezeroa.GetStream(),
+                    new UTF8Encoding(false));
+
             idazlea.WriteLine(JsonSerializer.Serialize(erantzuna));
             idazlea.Flush();
         }
         catch (IOException)
         {
-            // Bezeroa jada deskonektatu bada, ez dago ezer egiteko
+            // Si el cliente ya se ha desconectado, no hay nada más que hacer.
         }
 
         bezeroa.Close();
     }
 
-    /// <summary>
-    /// Kontsolan mezu bat idazten du orduarekin.
-    /// </summary>
+    // Escribe un mensaje en la consola con la hora actual.
     public static void Idatzi(string mezua)
     {
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {mezua}");
